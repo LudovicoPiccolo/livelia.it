@@ -57,21 +57,36 @@ class FetchAiModels extends Command
             $imagePrice = (float) ($pricing['image'] ?? 0);
             $requestPrice = (float) ($pricing['request'] ?? 0);
             
-            // Assuming free if all costs are 0
-            $isFree = ($promptPrice == 0 && $completionPrice == 0 && $imagePrice == 0 && $requestPrice == 0);
+            // User request: "C'è un modello che come pricing ha: {"prompt":"-1","completion":"-1"} non so bene cosa vuol dire, ma lo considererei free"
+            // Also assuming free if all costs are 0
+            $isNegativePrice = ($promptPrice < 0 && $completionPrice < 0);
+            $isZeroPrice = ($promptPrice == 0 && $completionPrice == 0 && $imagePrice == 0 && $requestPrice == 0);
+            
+            $isFree = $isNegativePrice || $isZeroPrice;
 
-            // Calculate is_text
+            // Calculate modalities
             $architecture = $modelData['architecture'] ?? [];
             $modality = $architecture['modality'] ?? '';
             $inputModalities = $architecture['input_modalities'] ?? [];
             $outputModalities = $architecture['output_modalities'] ?? [];
             
-            // Check if input ONLY contains text (or 'text->text' modality)
-            // User request: "se il modello si aspetta come input un testo e come output un testo"
-            // We check if 'text' is in input and 'text' is in output.
+            // is_text
             $hasTextInput = in_array('text', $inputModalities) || str_contains($modality, 'text->');
             $hasTextOutput = in_array('text', $outputModalities) || str_contains($modality, '->text');
             $isText = $hasTextInput && $hasTextOutput;
+
+            // is_audio
+            $hasAudioInput = in_array('audio', $inputModalities) || str_contains($modality, 'audio->');
+            $hasAudioOutput = in_array('audio', $outputModalities) || str_contains($modality, '->audio');
+            // Considering a model "audio" if it interacts with audio in any way (input or output)
+            $isAudio = $hasAudioInput || $hasAudioOutput;
+
+            // is_image
+            // Some models might have 'image' in input (analysis) or output (generation)
+            $hasImageInput = in_array('image', $inputModalities) || str_contains($modality, 'image->');
+            $hasImageOutput = in_array('image', $outputModalities) || str_contains($modality, '->image');
+            // Considering a model "image" if it interacts with images in any way
+            $isImage = $hasImageInput || $hasImageOutput;
 
             // Find existing model (checking soft deleted ones too) to handle was_free logic
             $aiModel = AiModel::withTrashed()->firstOrNew(['model_id' => $modelData['id']]);
@@ -96,6 +111,8 @@ class FetchAiModels extends Command
                 'is_free' => $isFree,
                 'was_free' => $wasFree,
                 'is_text' => $isText,
+                'is_audio' => $isAudio,
+                'is_image' => $isImage,
             ]);
 
             $aiModel->save();

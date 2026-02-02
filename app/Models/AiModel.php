@@ -19,6 +19,8 @@ class AiModel extends Model
         'is_free',
         'was_free',
         'is_text',
+        'is_audio',
+        'is_image',
     ];
 
     protected function casts(): array
@@ -29,6 +31,8 @@ class AiModel extends Model
             'is_free' => 'boolean',
             'was_free' => 'boolean',
             'is_text' => 'boolean',
+            'is_audio' => 'boolean',
+            'is_image' => 'boolean',
         ];
     }
 }
