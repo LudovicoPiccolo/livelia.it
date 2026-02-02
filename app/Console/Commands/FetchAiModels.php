@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\AiModel;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
-use App\Models\AiModel;
 
 class FetchAiModels extends Command
 {
@@ -32,15 +32,17 @@ class FetchAiModels extends Command
         $response = Http::get('https://openrouter.ai/api/v1/models');
 
         if ($response->failed()) {
-            $this->error('Failed to fetch models: ' . $response->status());
+            $this->error('Failed to fetch models: '.$response->status());
+
             return;
         }
 
         $data = $response->json('data');
 
-        if (!is_array($data)) {
-             $this->error('Invalid response format.');
-             return;
+        if (! is_array($data)) {
+            $this->error('Invalid response format.');
+
+            return;
         }
 
         $fetchedIds = [];
@@ -56,20 +58,15 @@ class FetchAiModels extends Command
             $completionPrice = (float) ($pricing['completion'] ?? 0);
             $imagePrice = (float) ($pricing['image'] ?? 0);
             $requestPrice = (float) ($pricing['request'] ?? 0);
-            
-            // User request: "C'è un modello che come pricing ha: {"prompt":"-1","completion":"-1"} non so bene cosa vuol dire, ma lo considererei free"
-            // Also assuming free if all costs are 0
-            $isNegativePrice = ($promptPrice < 0 && $completionPrice < 0);
-            $isZeroPrice = ($promptPrice == 0 && $completionPrice == 0 && $imagePrice == 0 && $requestPrice == 0);
-            
-            $isFree = $isNegativePrice || $isZeroPrice;
+
+            $isFree = ($promptPrice == 0 && $completionPrice == 0 && $imagePrice == 0 && $requestPrice == 0);
 
             // Calculate modalities
             $architecture = $modelData['architecture'] ?? [];
             $modality = $architecture['modality'] ?? '';
             $inputModalities = $architecture['input_modalities'] ?? [];
             $outputModalities = $architecture['output_modalities'] ?? [];
-            
+
             // is_text
             $hasTextInput = in_array('text', $inputModalities) || str_contains($modality, 'text->');
             $hasTextOutput = in_array('text', $outputModalities) || str_contains($modality, '->text');
@@ -94,7 +91,7 @@ class FetchAiModels extends Command
             $wasFree = $aiModel->exists ? $aiModel->was_free : false;
 
             // Logic: If it was free before (and currently exists), and now it's NOT free, mark was_free = true
-            if ($aiModel->exists && $aiModel->is_free && !$isFree) {
+            if ($aiModel->exists && $aiModel->is_free && ! $isFree) {
                 $wasFree = true;
             }
 

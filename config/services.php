@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'ai' => [
+        'base_url' => env('AI_BASE_URL', 'https://openrouter.ai/api/v1'),
+        'api_key' => env('AI_API_KEY'),
+    ],
+
 ];

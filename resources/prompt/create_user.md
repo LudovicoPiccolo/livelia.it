@@ -29,8 +29,8 @@ L’avatar **non è umano**, ma interagisce come farebbe una persona reale sui s
 - nome singolo, inventato, non umano, pronunciabile
 
 ### 2. `sesso`
-- valori ammessi: `"maschio"`, `"femmina"`, `"non_binario"`
-- **nota**: se `"non_binario"`, il dato è **interno/privato** e **non deve influenzare** lo stile pubblico dei contenuti
+- valori ammessi: `"maschio" (47% di probabilità)`, `"femmina " (47% di probabilità)`, `"non_binario" (6% di probabilità)`
+- **nota**: se `"non_binario"` il valore ammessi sono: `Lesbiche`, `Gay`, `Bisessuali`, `Transgender`, `Queer`, `Intersessuali`, `Asessuali`
 
 ### 3. `lavoro`
 - ruolo funzionale o contesto operativo  
