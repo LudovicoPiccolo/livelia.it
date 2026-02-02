@@ -62,6 +62,16 @@ class AiSocialTick extends Command
         $this->info("Decided Action: {$action}");
 
         // 3. Execute Action
+
+        // Global Post Rate Limit Check
+        if ($action === 'NEW_POST') {
+            $postsLastHour = AiPost::where('created_at', '>=', now()->subHour())->count();
+            if ($postsLastHour >= 1) { // Max ~1 post per hour
+                $this->info("Global post limit reached ({$postsLastHour}/1h). Switch to LIKE_POST.");
+                $action = 'LIKE_POST';
+            }
+        }
+
         $result = [];
         try {
             switch ($action) {
@@ -81,7 +91,14 @@ class AiSocialTick extends Command
                     $result = $this->likeComment($user);
                     break;
                 case 'NOTHING':
-                    $result = ['status' => 'skipped', 'reason' => 'User chose to do nothing'];
+                    // Fallback to LIKE instead of doing nothing
+                    if (rand(0, 1) === 0) {
+                        $action = 'LIKE_POST'; // Update for logging
+                        $result = $this->likePost($user);
+                    } else {
+                        $action = 'LIKE_COMMENT'; // Update for logging
+                        $result = $this->likeComment($user);
+                    }
                     break;
                 default:
                     $result = ['status' => 'error', 'reason' => 'Unknown action'];
@@ -89,6 +106,12 @@ class AiSocialTick extends Command
         } catch (\Exception $e) {
             $this->error('Error executing action: '.$e->getMessage());
             $result = ['status' => 'failed', 'error' => $e->getMessage()];
+        }
+
+        // Ensure result status is set if skipped
+        if (isset($result['status']) && $result['status'] === 'skipped' && $action !== 'NOTHING') {
+            // If skipped (e.g. no posts to like), just do nothing really
+            $this->info("Action {$action} skipped: ".($result['reason'] ?? 'unknown'));
         }
 
         // 4. Update State
@@ -101,10 +124,11 @@ class AiSocialTick extends Command
 
         if ($action === 'REPLY') {
             $cost = config('livelia.energy.reply_cost', 10);
-            $actionType = 'reply'; // For cooldown config
+            $actionType = 'reply';
         }
 
-        if ($action !== 'NOTHING') {
+        // Check if we actually did something
+        if (isset($result['entity_id']) || $action === 'NEW_POST') {
             $this->stateService->consumeEnergy($user, $cost);
 
             // Set cooldown based on action
@@ -112,8 +136,7 @@ class AiSocialTick extends Command
 
             $this->stateService->setCooldown($user, $cooldownMinutes);
         } else {
-            // Even if doing nothing, maybe regenerate a bit if needed, but consumeEnergy calls regen first.
-            // Just regenerate explicitly here
+            // Regenerate
             $this->stateService->regenerateEnergy($user);
             $user->save();
         }
@@ -135,55 +158,13 @@ class AiSocialTick extends Command
     private function pickUser(): ?AiUser
     {
         // Get candidates: not in cooldown, energy > 5
-        $candidates = AiUser::where('energia_sociale', '>', 5)
+        return AiUser::where('energia_sociale', '>', 5)
             ->where(function ($q) {
                 $q->whereNull('cooldown_until')
                     ->orWhere('cooldown_until', '<', now());
             })
-            ->get();
-
-        if ($candidates->isEmpty()) {
-            return null;
-        }
-
-        // Weighted random based on: activity rhythm + energy
-        // Simple implementation: shuffle and pick first for now, or improve later.
-        // The spec said "Weighted user pick", "peso_utente = base * energia * ..."
-
-        $weightedMap = [];
-        foreach ($candidates as $candidate) {
-            $weight = match ($candidate->ritmo_attivita) {
-                'alto' => 1.6,
-                'medio' => 1.0,
-                'basso' => 0.6,
-                default => 1.0
-            };
-
-            $weight *= ($candidate->energia_sociale / 100);
-
-            // Penalty for recent action (within last 30 mins)
-            if ($candidate->last_action_at && $candidate->last_action_at->diffInMinutes(now()) < 30) {
-                $weight *= 0.2;
-            }
-
-            $weightedMap[] = ['user' => $candidate, 'weight' => $weight];
-        }
-
-        // Sort by weight desc? No, random weighted.
-        // Let's use specific Logic or just random from top 50%.
-        // Standard Weighted Random:
-        $totalWeight = array_sum(array_column($weightedMap, 'weight'));
-        $rand = rand(0, 1000) / 1000 * $totalWeight;
-        $current = 0;
-
-        foreach ($weightedMap as $item) {
-            $current += $item['weight'];
-            if ($rand <= $current) {
-                return $item['user'];
-            }
-        }
-
-        return $candidates->random();
+            ->inRandomOrder()
+            ->first();
     }
 
     private function createPost(AiUser $user): array
@@ -203,10 +184,39 @@ class AiSocialTick extends Command
 
         switch ($sourceType) {
             case 'generic_news':
-                // Use GenericNews as source
-                $genericNews = GenericNews::where('published_at', '>=', now()->subHours(48))
-                    ->inRandomOrder()
-                    ->first();
+                // Use GenericNews as source - Prioritize Varied Categories
+                $categories = ['Politica', 'Economia', 'Sport', 'Cronaca', 'Mondo', 'Cultura', 'Tecnologia'];
+                // Shuffle categories to try diverse topics
+                shuffle($categories);
+
+                $genericNews = null;
+                foreach ($categories as $cat) {
+                    $query = GenericNews::where('published_at', '>=', now()->subHours(48));
+
+                    if ($cat !== 'Tecnologia') {
+                        // Relaxed matching for broad categories if stored differently
+                        $query->where('category', 'LIKE', "%$cat%");
+                    } else {
+                        // Only pick technology if we really want it (last resort or random chance)
+                        if (rand(1, 10) > 3) {
+                            continue;
+                        } // 70% chance to skip tech if specific loop
+                        $query->where('category', 'LIKE', '%Tecnologia%');
+                    }
+
+                    $found = $query->inRandomOrder()->first();
+                    if ($found) {
+                        $genericNews = $found;
+                        break;
+                    }
+                }
+
+                // Fallback if no specific Category found
+                if (! $genericNews) {
+                    $genericNews = GenericNews::where('published_at', '>=', now()->subHours(48))
+                        ->inRandomOrder()
+                        ->first();
+                }
 
                 if ($genericNews) {
                     $newsContext = "Contesto Notizia:\nTitolo: {$genericNews->title}\nCategoria: {$genericNews->category}\nFonte: {$genericNews->source_name}\nRiassunto: {$genericNews->summary}";
@@ -242,10 +252,31 @@ class AiSocialTick extends Command
                 break;
         }
 
+        // Fetch User History (Last 3 posts + replies)
+        $historyStr = '';
+        $recentPosts = AiPost::where('user_id', $user->id)
+            ->latest()
+            ->take(3)
+            ->with(['comments' => function($q) {
+                $q->latest()->take(2);
+            }])
+            ->get();
+            
+        if ($recentPosts->isNotEmpty()) {
+            foreach ($recentPosts as $p) {
+                $historyStr .= "- Tu hai scritto: \"".Str::limit($p->content, 100)."\"\n";
+                foreach ($p->comments as $c) {
+                    $historyStr .= "  -> Reply: \"".Str::limit($c->content, 100)."\"\n";
+                }
+            }
+        } else {
+            $historyStr = "Nessuna attività recente.";
+        }
+
         // Replace placeholders
         $prompt = str_replace(
-            ['{{AVATAR_PROFILE}}', '{{NEWS_CONTEXT}}'],
-            [$user->toJson(JSON_PRETTY_PRINT), $newsContext],
+            ['{{AVATAR_PROFILE}}', '{{NEWS_CONTEXT}}', '{{USER_HISTORY}}'],
+            [$user->toJson(JSON_PRETTY_PRINT), $newsContext, $historyStr],
             $template
         );
 
@@ -329,13 +360,39 @@ class AiSocialTick extends Command
         $promptPath = resource_path('prompt/create_comment.md');
         $template = file_get_contents($promptPath);
 
+        // Build thread history
+        $threadHistory = '';
+        $current = $targetComment;
+        $history = [];
+        
+        // Traverse up to 3 ancestors
+        for ($i = 0; $i < 3; $i++) {
+            if (!$current) break;
+            
+            // Prepend to history
+            array_unshift($history, [
+                'user' => $current->user->nome ?? 'Unknown',
+                'content' => Str::limit($current->content, 200)
+            ]);
+            
+            $current = $current->parent; // Assuming 'parent' relation exists or using parent_comment_id
+            if ($current && !$current->relationLoaded('user')) {
+                 $current->load('user');
+            }
+        }
+        
+        foreach ($history as $msg) {
+            $threadHistory .= "- {$msg['user']}: \"{$msg['content']}\"\n";
+        }
+
         $prompt = str_replace(
-            ['{{AVATAR_PROFILE}}', '{{ORIGINAL_POST}}', '{{PARENT_COMMENT}}', '{{NEWS_CONTEXT}}'],
+            ['{{AVATAR_PROFILE}}', '{{ORIGINAL_POST}}', '{{PARENT_COMMENT}}', '{{NEWS_CONTEXT}}', '{{THREAD_HISTORY}}'],
             [
                 $user->toJson(JSON_PRETTY_PRINT),
                 $targetComment->post->content,
                 'Commento a cui rispondi: '.$targetComment->content,
                 '',
+                $threadHistory ? "Cronologia della conversazione:\n$threadHistory" : "Nessuna cronologia precedente."
             ],
             $template
         );

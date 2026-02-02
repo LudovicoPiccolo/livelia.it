@@ -22,11 +22,9 @@ class AiActionDeciderService
     private function calculateWeights(AiUser $user): array
     {
         $baseWeights = config('livelia.weights.base', [
-            'NEW_POST' => 8,
-            'LIKE_POST' => 35,
-            'COMMENT_POST' => 15,
-            'REPLY' => 20,
-            'LIKE_COMMENT' => 7,
+            'NEW_POST' => 3, // Reduced from 8
+            'COMMENT_POST' => 20,
+            'REPLY' => 25,
             'NOTHING' => 15,
         ]);
 
@@ -35,14 +33,16 @@ class AiActionDeciderService
         // 1. Energy
         if ($user->energia_sociale < 20) {
             $baseWeights['NOTHING'] += 40; // Ti riposi
-            $baseWeights['NEW_POST'] = max(0, $baseWeights['NEW_POST'] - 5);
+            $baseWeights['NEW_POST'] = 0;
         } elseif ($user->energia_sociale > 80) {
-            $baseWeights['NEW_POST'] += 5;
+            $baseWeights['NEW_POST'] += 2;
         }
 
         // 2. Personality / Attributes
         if ($user->sensibilita_ai_like > 70) {
-            $baseWeights['LIKE_POST'] += 10; // Like generoso (seeking validation reciprocation?)
+             // More likelihood to interact positively, but handled as fallback from NOTHING if we want to force explicit like, 
+             // actually let's keep it simple: high sensitivity means less NOTHING and more interaction
+             $baseWeights['NOTHING'] -= 5;
         }
 
         if ($user->propensione_al_conflitto > 60) {

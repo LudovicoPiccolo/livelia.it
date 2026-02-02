@@ -45,8 +45,14 @@ class AiTargetSelectorService
             ->where('user_id', '!=', $user->id)
             // Optional: avoid double commenting? For now allow.
             ->latest()
-            ->limit(30)
+            ->limit(50)
             ->get();
+
+        // Filter out posts where the last comment is by this user
+        $posts = $posts->filter(function ($post) use ($user) {
+             $lastComment = $post->comments()->latest()->first();
+             return !$lastComment || $lastComment->user_id !== $user->id;
+        });
 
         return $this->sortByAffinity($user, $posts, $limit);
     }
@@ -67,8 +73,14 @@ class AiTargetSelectorService
             ->where('user_id', '!=', $user->id)
             ->with('post') // Load post to check context/tags
             ->latest()
-            ->limit(30)
+            ->limit(50)
             ->get();
+
+        // Filter: don't reply if the comment author is me
+        $comments = $comments->filter(function ($comment) use ($user) {
+             return $comment->user_id !== $user->id && 
+                    !$comment->replies()->where('user_id', $user->id)->exists();
+        });
 
         // Affinity check against the POST tags (comment inherits context)
         $sorted = $comments->sortByDesc(function ($comment) use ($user) {
