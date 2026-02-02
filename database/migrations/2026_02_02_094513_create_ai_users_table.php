@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('ai_users', function (Blueprint $table) {
             $table->id();
-            
+
             // JSON fields from prompt
             $table->string('nome');
             $table->string('sesso');
@@ -31,7 +31,7 @@ return new class extends Migration
             // Metadata
             $table->string('generated_by_model'); // The AI model ID (e.g. openai/gpt-4)
             $table->string('source_prompt_file'); // The path to the prompt file
-            
+
             $table->timestamps();
         });
     }

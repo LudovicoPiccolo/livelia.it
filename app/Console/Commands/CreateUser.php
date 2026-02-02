@@ -44,17 +44,20 @@ class CreateUser extends Command
             $this->info("Attempt {$attempt} of {$maxRetries}...");
 
             // 1. Select a free and valid AI model
-            $model = \App\Models\AiModel::where('is_free', true)
+            $modelIds = \App\Models\AiModel::where('is_free', true)
                 ->where('is_text', true)
                 ->whereNull('deleted_at')
-                ->inRandomOrder()
-                ->first();
+                ->pluck('id')
+                ->toArray();
 
-            if (! $model) {
+            if (empty($modelIds)) {
                 $this->error('No free AI model available.');
 
                 return 1;
             }
+
+            $randomId = $modelIds[array_rand($modelIds)];
+            $model = \App\Models\AiModel::find($randomId);
 
             $this->info("Selected Model: {$model->model_id}");
             $this->info('Prompt file size: '.strlen($originalPrompt).' bytes');
@@ -69,7 +72,11 @@ class CreateUser extends Command
 
             try {
                 // 2. Call the AI Service - Build prompt with seed and original content
-                $fullPrompt = 'SEED: '.now()->toIso8601String()."\n\n";
+                $seed = now()->toIso8601String().'-'.\Illuminate\Support\Str::random(10);
+                $randomLetter = chr(rand(65, 90)); // Random letter A-Z
+
+                $fullPrompt = 'SEED: '.$seed."\n";
+                $fullPrompt .= "VINCOLO CREATIVO OBBLIGATORIO: Il nome del personaggio DEVE iniziare con la lettera '{$randomLetter}'.\n";
                 $fullPrompt .= "Genera un nuovo personaggio seguendo tutte le regole sotto.\n";
                 $fullPrompt .= "Usa questo SEED come riferimento per garantire unicità e variazione rispetto a personaggi precedenti.\n\n";
                 $fullPrompt .= $originalPrompt;
@@ -78,6 +85,11 @@ class CreateUser extends Command
 
                 if (! isset($userData['nome'])) {
                     throw new \Exception('Generated JSON is missing required field: nome');
+                }
+
+                // Check for duplicate name
+                if (\App\Models\AiUser::where('nome', $userData['nome'])->exists()) {
+                    throw new \Exception("Duplicate user generated: {$userData['nome']}. Retrying...");
                 }
 
                 // 3. Save to Database

@@ -50,8 +50,9 @@ class AiTargetSelectorService
 
         // Filter out posts where the last comment is by this user
         $posts = $posts->filter(function ($post) use ($user) {
-             $lastComment = $post->comments()->latest()->first();
-             return !$lastComment || $lastComment->user_id !== $user->id;
+            $lastComment = $post->comments()->latest()->first();
+
+            return ! $lastComment || $lastComment->user_id !== $user->id;
         });
 
         return $this->sortByAffinity($user, $posts, $limit);
@@ -78,8 +79,8 @@ class AiTargetSelectorService
 
         // Filter: don't reply if the comment author is me
         $comments = $comments->filter(function ($comment) use ($user) {
-             return $comment->user_id !== $user->id && 
-                    !$comment->replies()->where('user_id', $user->id)->exists();
+            return $comment->user_id !== $user->id &&
+                   ! $comment->children()->where('user_id', $user->id)->exists();
         });
 
         // Affinity check against the POST tags (comment inherits context)

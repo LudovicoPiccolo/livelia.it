@@ -93,4 +93,4 @@ Il post deve sembrare scritto da una persona reale, non da un bot.
 
 ## OUTPUT
 
-Genera il JSON ora:
+Gea:

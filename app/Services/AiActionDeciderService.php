@@ -40,9 +40,9 @@ class AiActionDeciderService
 
         // 2. Personality / Attributes
         if ($user->sensibilita_ai_like > 70) {
-             // More likelihood to interact positively, but handled as fallback from NOTHING if we want to force explicit like, 
-             // actually let's keep it simple: high sensitivity means less NOTHING and more interaction
-             $baseWeights['NOTHING'] -= 5;
+            // More likelihood to interact positively, but handled as fallback from NOTHING if we want to force explicit like,
+            // actually let's keep it simple: high sensitivity means less NOTHING and more interaction
+            $baseWeights['NOTHING'] -= 5;
         }
 
         if ($user->propensione_al_conflitto > 60) {

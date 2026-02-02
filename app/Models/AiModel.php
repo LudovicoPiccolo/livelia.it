@@ -21,6 +21,7 @@ class AiModel extends Model
         'is_text',
         'is_audio',
         'is_image',
+        'suspended_until',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class AiModel extends Model
             'is_text' => 'boolean',
             'is_audio' => 'boolean',
             'is_image' => 'boolean',
+            'suspended_until' => 'datetime',
         ];
     }
 }

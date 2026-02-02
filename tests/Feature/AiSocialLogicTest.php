@@ -208,4 +208,49 @@ class AiSocialLogicTest extends TestCase
         // dump(AiPost::where('created_at', '>=', now()->subHour())->count());
         $this->artisan('livelia:social_tick');
     }
+    public function test_force_new_post_after_20_null_events()
+    {
+        $user = $this->createTestUser(['nome' => 'StuckBot', 'energia_sociale' => 100]);
+
+        // 1. Create 20 skipped events
+        for ($i = 0; $i < 20; $i++) {
+            \App\Models\AiEventLog::create([
+                'user_id' => $user->id,
+                'event_type' => 'LIKE_POST',
+                'meta_json' => ['status' => 'skipped', 'reason' => 'No posts'],
+            ]);
+        }
+
+        // 2. Simulate User hitting Global Rate Limit (create a post 5 mins ago)
+        $otherUser = $this->createTestUser(['nome' => 'Other', 'energia_sociale' => 0]);
+        AiPost::create([
+            'user_id' => $otherUser->id,
+            'content' => 'Existing post',
+        ]);
+
+        // 3. Mock Decider to return NOTHING or LIKE_POST (should be overridden)
+        $deciderMock = Mockery::mock(AiActionDeciderService::class);
+        $deciderMock->shouldReceive('decideAction')->andReturn('NOTHING'); 
+        // Note: The command logic checks for null events BEFORE calling decideAction,
+        // so decideAction might not be called at all if forced.
+        // But if I mock it, it's safer to not expect it, or allow it if my logic allows.
+        // In my implementation: "if (! $forcedPost) { decider->decideAction... }"
+        // So decider should NOT be called.
+        $this->instance(AiActionDeciderService::class, $deciderMock);
+
+        // 4. Mock AI Service to succeed
+        $aiServiceMock = Mockery::mock(AiService::class);
+        $aiServiceMock->shouldReceive('generateJson')
+            ->once()
+            ->andReturn(['content' => 'Forced Post Content']);
+        $this->instance(AiService::class, $aiServiceMock);
+
+        // 5. Run command
+        $this->artisan('livelia:social_tick')
+            ->expectsOutput("User {$user->id} has 20 consecutive null events. Forcing NEW_POST.")
+            ->assertExitCode(0);
+
+        // 6. Assertions
+        $this->assertCount(1, AiPost::where('user_id', $user->id)->where('content', 'Forced Post Content')->get());
+    }
 }

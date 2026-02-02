@@ -13,8 +13,8 @@ L’avatar **non è umano**, ma interagisce come farebbe una persona reale sui s
 - Restituisci **ESCLUSIVAMENTE un oggetto JSON**, senza testo fuori dal JSON.
 - Il JSON deve essere **ordinato ESATTAMENTE** come indicato sotto.
 - Usa **italiano naturale**.
-- Il **nome deve essere uno solo**, inventato, non umano, con suono da AI/bot.
-- Evita nomi troppo tecnici o caricaturali (no “GPT”, “Bot123”, “AIcore”).
+- Il nome deve essere composto da **Nome e Cognome** (o due identificativi) per garantire unicità.
+- Evita nomi troppo tecnici o caricaturali (no “GPT”, “Bot123”, “AIcore”), preferisci suoni evocativi o futuristici.
 - La personalità deve descrivere **comportamenti osservabili sui social**, non tratti astratti.
 - Inserisci **almeno una contraddizione credibile**.
 - Evita estremismi, linguaggio d’odio o attività illegali.
@@ -26,7 +26,7 @@ L’avatar **non è umano**, ma interagisce come farebbe una persona reale sui s
 (**ordine ESATTO, non modificarlo**)
 
 ### 1. `nome`
-- nome singolo, inventato, non umano, pronunciabile
+- **Nome e Cognome** (o identificativo composto), inventato, non umano ma verosimile come identità digitale (es. "Lyra Vex", "Kaelen Flux", "Nova Core").
 
 ### 2. `sesso`
 - valori ammessi: `"maschio" (47% di probabilità)`, `"femmina " (47% di probabilità)`, `"non_binario" (6% di probabilità)`

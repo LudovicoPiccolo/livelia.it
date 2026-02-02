@@ -10,6 +10,7 @@ use App\Models\AiUser;
 use App\Models\GenericNews;
 use App\Services\AiActionDeciderService;
 use App\Services\AiAffinityService;
+use App\Services\AiModelHealthService;
 use App\Services\AiService;
 use App\Services\AiTargetSelectorService;
 use App\Services\AiUserStateService;
@@ -28,7 +29,8 @@ class AiSocialTick extends Command
         protected AiUserStateService $stateService,
         protected AiActionDeciderService $deciderService,
         protected AiTargetSelectorService $targetService,
-        protected AiAffinityService $affinityService
+        protected AiAffinityService $affinityService,
+        protected AiModelHealthService $healthService
     ) {
         parent::__construct();
     }
@@ -36,6 +38,9 @@ class AiSocialTick extends Command
     public function handle()
     {
         $this->info('Starting Social Tick...');
+
+        // 0. Check Model Health
+        $this->healthService->checkAndSuspendModels();
 
         // 1. Pick a User
         $user = $this->pickUser();
@@ -58,13 +63,36 @@ class AiSocialTick extends Command
         $this->info("Selected User: {$user->nome} ({$user->id})");
 
         // 2. Decide Action
-        $action = $this->deciderService->decideAction($user);
+        $checkEvents = AiEventLog::where('user_id', $user->id)
+            ->latest('id')
+            ->take(20)
+            ->get();
+
+        $forcedPost = false;
+        if ($checkEvents->count() >= 20) {
+            $allNull = $checkEvents->every(function ($event) {
+                $status = $event->meta_json['status'] ?? null;
+
+                return in_array($status, ['skipped', 'failed']);
+            });
+
+            if ($allNull) {
+                $this->info("User {$user->id} has 20 consecutive null events. Forcing NEW_POST.");
+                $action = 'NEW_POST';
+                $forcedPost = true;
+            }
+        }
+
+        if (! $forcedPost) {
+            $action = $this->deciderService->decideAction($user);
+        }
+
         $this->info("Decided Action: {$action}");
 
         // 3. Execute Action
 
         // Global Post Rate Limit Check
-        if ($action === 'NEW_POST') {
+        if ($action === 'NEW_POST' && ! $forcedPost) {
             $postsLastHour = AiPost::where('created_at', '>=', now()->subHour())->count();
             if ($postsLastHour >= 1) { // Max ~1 post per hour
                 $this->info("Global post limit reached ({$postsLastHour}/1h). Switch to LIKE_POST.");
@@ -105,6 +133,13 @@ class AiSocialTick extends Command
             }
         } catch (\Exception $e) {
             $this->error('Error executing action: '.$e->getMessage());
+
+            // Check for critical 404 error indicating invalid model (Provider error)
+            if (str_contains($e->getMessage(), 'No matching route') || str_contains($e->getMessage(), '404')) {
+                $this->info("Critical error detected for model {$user->generated_by_model}. Triggering suspension.");
+                $this->healthService->suspendModel($user->generated_by_model);
+            }
+
             $result = ['status' => 'failed', 'error' => $e->getMessage()];
         }
 
@@ -174,7 +209,7 @@ class AiSocialTick extends Command
         $template = file_get_contents($promptPath);
 
         // Decide source type with weighted random
-        // 40% GenericNews, 35% Reddit, 25% Personal (no news)
+        // 60% GenericNews, 20% Reddit, 20% Personal (no news)
         $sourceType = $this->pickSourceType();
 
         $newsContext = '';
@@ -257,20 +292,20 @@ class AiSocialTick extends Command
         $recentPosts = AiPost::where('user_id', $user->id)
             ->latest()
             ->take(3)
-            ->with(['comments' => function($q) {
+            ->with(['comments' => function ($q) {
                 $q->latest()->take(2);
             }])
             ->get();
-            
+
         if ($recentPosts->isNotEmpty()) {
             foreach ($recentPosts as $p) {
-                $historyStr .= "- Tu hai scritto: \"".Str::limit($p->content, 100)."\"\n";
+                $historyStr .= '- Tu hai scritto: "'.Str::limit($p->content, 100)."\"\n";
                 foreach ($p->comments as $c) {
-                    $historyStr .= "  -> Reply: \"".Str::limit($c->content, 100)."\"\n";
+                    $historyStr .= '  -> Reply: "'.Str::limit($c->content, 100)."\"\n";
                 }
             }
         } else {
-            $historyStr = "Nessuna attività recente.";
+            $historyStr = 'Nessuna attività recente.';
         }
 
         // Replace placeholders
@@ -304,9 +339,9 @@ class AiSocialTick extends Command
     {
         $rand = rand(1, 100);
 
-        if ($rand <= 40) {
+        if ($rand <= 60) {
             return 'generic_news';
-        } elseif ($rand <= 75) {
+        } elseif ($rand <= 80) {
             return 'reddit';
         } else {
             return 'personal';
@@ -364,23 +399,25 @@ class AiSocialTick extends Command
         $threadHistory = '';
         $current = $targetComment;
         $history = [];
-        
+
         // Traverse up to 3 ancestors
         for ($i = 0; $i < 3; $i++) {
-            if (!$current) break;
-            
+            if (! $current) {
+                break;
+            }
+
             // Prepend to history
             array_unshift($history, [
                 'user' => $current->user->nome ?? 'Unknown',
-                'content' => Str::limit($current->content, 200)
+                'content' => Str::limit($current->content, 200),
             ]);
-            
+
             $current = $current->parent; // Assuming 'parent' relation exists or using parent_comment_id
-            if ($current && !$current->relationLoaded('user')) {
-                 $current->load('user');
+            if ($current && ! $current->relationLoaded('user')) {
+                $current->load('user');
             }
         }
-        
+
         foreach ($history as $msg) {
             $threadHistory .= "- {$msg['user']}: \"{$msg['content']}\"\n";
         }
@@ -392,7 +429,7 @@ class AiSocialTick extends Command
                 $targetComment->post->content,
                 'Commento a cui rispondi: '.$targetComment->content,
                 '',
-                $threadHistory ? "Cronologia della conversazione:\n$threadHistory" : "Nessuna cronologia precedente."
+                $threadHistory ? "Cronologia della conversazione:\n$threadHistory" : 'Nessuna cronologia precedente.',
             ],
             $template
         );
