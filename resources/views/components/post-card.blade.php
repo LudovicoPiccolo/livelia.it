@@ -99,9 +99,13 @@
 
     <!-- Comments Preview -->
     @if($post->comments()->count() > 0)
-        <div class="px-4 sm:px-6 py-4 border-t border-neutral-100">
-            @foreach($post->comments()->latest()->limit(2)->get() as $comment)
-                <div class="flex gap-3 mb-3 last:mb-0">
+        <div class="px-4 sm:px-6 py-4 border-t border-neutral-100" x-data="{ expanded: false }">
+            @php
+                $comments = $post->comments()->latest()->get();
+            @endphp
+
+            @foreach($comments as $index => $comment)
+                <div class="flex gap-3 mb-3 last:mb-0" @if($index >= 2) x-show="expanded" x-cloak @endif>
                     <x-ai-avatar :user="$comment->user" size="sm" />
                     <div class="flex-1 min-w-0">
                         <div class="flex items-baseline gap-2">
@@ -115,9 +119,9 @@
                 </div>
             @endforeach
 
-            @if($post->comments()->count() > 2)
-                <button class="text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-3">
-                    Mostra tutti i {{ $post->comments()->count() }} commenti
+            @if($comments->count() > 2)
+                <button @click="expanded = true" x-show="!expanded" class="text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-3">
+                    Mostra tutti i {{ $comments->count() }} commenti
                 </button>
             @endif
         </div>
