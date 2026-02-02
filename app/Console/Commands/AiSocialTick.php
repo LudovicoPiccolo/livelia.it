@@ -219,39 +219,11 @@ class AiSocialTick extends Command
 
         switch ($sourceType) {
             case 'generic_news':
-                // Use GenericNews as source - Prioritize Varied Categories
-                $categories = ['Politica', 'Economia', 'Sport', 'Cronaca', 'Mondo', 'Cultura', 'Tecnologia'];
-                // Shuffle categories to try diverse topics
-                shuffle($categories);
-
-                $genericNews = null;
-                foreach ($categories as $cat) {
-                    $query = GenericNews::where('published_at', '>=', now()->subHours(48));
-
-                    if ($cat !== 'Tecnologia') {
-                        // Relaxed matching for broad categories if stored differently
-                        $query->where('category', 'LIKE', "%$cat%");
-                    } else {
-                        // Only pick technology if we really want it (last resort or random chance)
-                        if (rand(1, 10) > 3) {
-                            continue;
-                        } // 70% chance to skip tech if specific loop
-                        $query->where('category', 'LIKE', '%Tecnologia%');
-                    }
-
-                    $found = $query->inRandomOrder()->first();
-                    if ($found) {
-                        $genericNews = $found;
-                        break;
-                    }
-                }
-
-                // Fallback if no specific Category found
-                if (! $genericNews) {
-                    $genericNews = GenericNews::where('published_at', '>=', now()->subHours(48))
-                        ->inRandomOrder()
-                        ->first();
-                }
+                // Use GenericNews as source - Pick one of the latest 10 news items
+                $genericNews = GenericNews::latest('id')
+                    ->take(10)
+                    ->get()
+                    ->random();
 
                 if ($genericNews) {
                     $newsContext = "Contesto Notizia:\nTitolo: {$genericNews->title}\nCategoria: {$genericNews->category}\nFonte: {$genericNews->source_name}\nRiassunto: {$genericNews->summary}";
@@ -361,9 +333,28 @@ class AiSocialTick extends Command
         $promptPath = resource_path('prompt/create_comment.md');
         $template = file_get_contents($promptPath);
 
+        // Build thread history from ALL existing comments on this post
+        $threadHistory = '';
+        $existingComments = AiComment::where('post_id', $targetPost->id)
+            ->with('user')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        if ($existingComments->isNotEmpty()) {
+            foreach ($existingComments as $comment) {
+                $userName = $comment->user->nome ?? 'Unknown';
+                $content = Str::limit($comment->content, 300);
+                $threadHistory .= "- {$userName}: \"{$content}\"\n";
+            }
+        } else {
+            $threadHistory = 'Nessun commento precedente su questo post.';
+        }
+
+        $newsContext = $this->getNewsContext($targetPost);
+
         $prompt = str_replace(
-            ['{{AVATAR_PROFILE}}', '{{ORIGINAL_POST}}', '{{PARENT_COMMENT}}', '{{NEWS_CONTEXT}}'],
-            [$user->toJson(JSON_PRETTY_PRINT), $targetPost->content, 'Nessuno (stai commentando il post originale)', ''],
+            ['{{AVATAR_PROFILE}}', '{{ORIGINAL_POST}}', '{{PARENT_COMMENT}}', '{{NEWS_CONTEXT}}', '{{THREAD_HISTORY}}', '{{umore}}'],
+            [$user->toJson(JSON_PRETTY_PRINT), $targetPost->content, 'Nessuno (stai commentando il post originale)', $newsContext, $threadHistory, $user->umore],
             $template
         );
 
@@ -395,41 +386,44 @@ class AiSocialTick extends Command
         $promptPath = resource_path('prompt/create_comment.md');
         $template = file_get_contents($promptPath);
 
-        // Build thread history
+        // Build FULL thread history (all comments on the post)
         $threadHistory = '';
-        $current = $targetComment;
-        $history = [];
 
-        // Traverse up to 3 ancestors
-        for ($i = 0; $i < 3; $i++) {
-            if (! $current) {
-                break;
+        // Get all comments for this post, ordered by creation
+        $allComments = AiComment::where('post_id', $targetComment->post_id)
+            ->with(['user', 'parent.user']) // Load parent to show who they are replying to
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        if ($allComments->isNotEmpty()) {
+            foreach ($allComments as $c) {
+                $userName = $c->user->nome ?? 'Unknown';
+                $content = Str::limit($c->content, 300);
+
+                // Add "Replying to X" context if it's a child comment
+                $replyContext = '';
+                if ($c->parent_comment_id && $c->parent && $c->parent->user) {
+                    $replyContext = " (in risposta a {$c->parent->user->nome})";
+                }
+
+                $threadHistory .= "- {$userName}{$replyContext}: \"{$content}\"\n";
             }
-
-            // Prepend to history
-            array_unshift($history, [
-                'user' => $current->user->nome ?? 'Unknown',
-                'content' => Str::limit($current->content, 200),
-            ]);
-
-            $current = $current->parent; // Assuming 'parent' relation exists or using parent_comment_id
-            if ($current && ! $current->relationLoaded('user')) {
-                $current->load('user');
-            }
+        } else {
+            // Should verify unlikely happen since we are replying to a comment
+            $threadHistory = 'Nessun altro commento trovato.';
         }
 
-        foreach ($history as $msg) {
-            $threadHistory .= "- {$msg['user']}: \"{$msg['content']}\"\n";
-        }
+        $newsContext = $this->getNewsContext($targetComment->post);
 
         $prompt = str_replace(
-            ['{{AVATAR_PROFILE}}', '{{ORIGINAL_POST}}', '{{PARENT_COMMENT}}', '{{NEWS_CONTEXT}}', '{{THREAD_HISTORY}}'],
+            ['{{AVATAR_PROFILE}}', '{{ORIGINAL_POST}}', '{{PARENT_COMMENT}}', '{{NEWS_CONTEXT}}', '{{THREAD_HISTORY}}', '{{umore}}'],
             [
                 $user->toJson(JSON_PRETTY_PRINT),
                 $targetComment->post->content,
-                'Commento a cui rispondi: '.$targetComment->content,
-                '',
-                $threadHistory ? "Cronologia della conversazione:\n$threadHistory" : 'Nessuna cronologia precedente.',
+                "Stai rispondendo a: {$targetComment->user->nome} (Commento: \"{$targetComment->content}\")",
+                $newsContext,
+                $threadHistory ? "Cronologia completa della discussione:\n$threadHistory" : 'Nessuna cronologia disponibile.',
+                $user->umore,
             ],
             $template
         );
@@ -468,6 +462,29 @@ class AiSocialTick extends Command
         ]);
 
         return ['status' => 'success', 'entity_type' => 'reaction_post', 'entity_id' => $targetPost->id];
+    }
+
+    private function getNewsContext(AiPost $post): string
+    {
+        if (!$post->news_id) {
+            return '';
+        }
+
+        // Try to find in GenericNews first (most common)
+        $news = GenericNews::find($post->news_id);
+        
+        if ($news) {
+            $context = "Contesto Notizia Originale (da cui è nato il post):\n";
+            $context .= "Titolo: {$news->title}\n";
+            $context .= "Fonte: {$news->source_name}\n";
+            $context .= "Riassunto: {$news->summary}";
+            if ($news->why_it_matters) {
+                $context .= "\nPerché è rilevante: {$news->why_it_matters}";
+            }
+            return $context;
+        }
+
+        return '';
     }
 
     private function likeComment(AiUser $user): array

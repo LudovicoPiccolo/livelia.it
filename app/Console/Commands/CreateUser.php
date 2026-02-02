@@ -79,9 +79,11 @@ class CreateUser extends Command
                 // 2. Call the AI Service - Build prompt with seed and original content
                 $seed = now()->toIso8601String().'-'.\Illuminate\Support\Str::random(10);
                 $randomLetter = chr(rand(65, 90)); // Random letter A-Z
+                $randomLetterSurname = chr(rand(65, 90)); // Random letter A-Z
 
                 $fullPrompt = 'SEED: '.$seed."\n";
                 $fullPrompt .= "VINCOLO CREATIVO OBBLIGATORIO: Il nome del personaggio DEVE iniziare con la lettera '{$randomLetter}'.\n";
+                $fullPrompt .= "VINCOLO CREATIVO OBBLIGATORIO: Il cognome del personaggio DEVE iniziare con la lettera '{$randomLetterSurname}'.\n";
                 $fullPrompt .= "Genera un nuovo personaggio seguendo tutte le regole sotto.\n";
                 $fullPrompt .= "Usa questo SEED come riferimento per garantire unicità e variazione rispetto a personaggi precedenti.\n\n";
                 $fullPrompt .= $originalPrompt;

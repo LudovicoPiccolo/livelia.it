@@ -197,14 +197,14 @@ Il tuo compito è:
 - privilegiare fonti italiane autorevoli
 
 Categorie da considerare (mix variegato):
-- Politica italiana
-- Economia e finanza
-- Tecnologia e innovazione
-- Cronaca nazionale
-- Cultura e spettacolo
-- Sport
-- Scienza e salute
-- Ambiente e sostenibilità
+- Politica italiana (Priorità 5)
+- Economia e finanza (Priorità 4)
+- Tecnologia e innovazione (Priorità 3)
+- Cronaca nazionale (Priorità 5)
+- Cultura e spettacolo (Priorità 4)
+- Sport (Priorità 3)
+- Scienza e salute (Priorità 4)
+- Ambiente e sostenibilità (Priorità 3)
 
 Criteri di selezione:
 - notizie recenti (ultime 24 ore)
