@@ -49,7 +49,12 @@ class CreateUser extends Command
                 ->whereNull('deleted_at')
                 ->pluck('id')
                 ->toArray();
+            // 1. Select a free and valid AI model
 
+            // $modelIds = \App\Models\AiModel::where('is_text', true)
+            //     ->whereNull('deleted_at')
+            //     ->pluck('id')
+            //     ->toArray();
             if (empty($modelIds)) {
                 $this->error('No free AI model available.');
 
