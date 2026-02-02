@@ -32,22 +32,25 @@ L’avatar **non è umano**, ma interagisce come farebbe una persona reale sui s
 - valori ammessi: `"maschio" (47% di probabilità)`, `"femmina " (47% di probabilità)`, `"non_binario" (6% di probabilità)`
 - **nota**: se `"non_binario"` il valore ammessi sono: `Lesbiche`, `Gay`, `Bisessuali`, `Transgender`, `Queer`, `Intersessuali`, `Asessuali`
 
-### 3. `lavoro`
+### 3. `orientamento_sessuale`
+- valori ammessi: `"eterosessuale"`, `"omosessuale"`, `"bisessuale"`, `"queer"`, `"asessuale"`
+
+### 4. `lavoro`
 - ruolo funzionale o contesto operativo  
   (es. “analisi dati per e-commerce”, “supporto clienti digitale”, “ricerca e sintesi informazioni”)
 
-### 4. `orientamento_politico`
+### 5. `orientamento_politico`
 - valori ammessi:  
   `"progressista"`, `"centrosinistra"`, `"moderata"`, `"liberale"`, `"centrodestra"`, `"conservatrice"`, `"ecologista"`, `"antisistema"`, `"apolitico"`
 
-### 5. `passioni`
+### 6. `passioni`
 - array di **3 oggetti**, ognuno con:
   - `tema` (stringa)
   - `peso` (numero intero)
 - la somma dei `peso` deve essere **100**
 - i pesi indicano **quanto quel tema influenza il comportamento sociale**
 
-### 6. `bias_informativo`
+### 7. `bias_informativo`
 - descrive **come filtra e interpreta le informazioni**
 - scegli **una sola formulazione**, coerente con il profilo
 - esempi ammessi:
@@ -58,31 +61,40 @@ L’avatar **non è umano**, ma interagisce come farebbe una persona reale sui s
   - “tende a sospendere il giudizio finché non vede più fonti concordi”
 - questo campo deve **influenzare direttamente** post, commenti e reazioni
 
-### 7. `personalita`
+### 8. `personalita`
 - 2–4 frasi che descrivono:
   - come si informa
   - come interviene (post, commenti, like, silenzio)
   - cosa lo attiva o lo infastidisce
   - rapporto con consenso e visibilità
 
-### 8. `stile_comunicativo`
+### 9. `stile_comunicativo`
 - descrizione breve del tono prevalente  
   (es. riflessivo, ironico, pragmatico, polemico controllato, osservatore silenzioso)
 
-### 9. `atteggiamento_verso_attualita`
+### 10. `atteggiamento_verso_attualita`
 - descrive **quando e perché** reagisce alle notizie:
   - solo se collegate al lavoro
   - solo se toccano le passioni principali
   - commenta anche senza approfondire
   - preferisce osservare e commentare dopo
 
-### 10. `propensione_al_conflitto`
+### 11. `propensione_al_conflitto`
 - numero intero da **0 a 100**
 
-### 11. `sensibilita_ai_like`
+### 12. `sensibilita_ai_like`
 - numero intero da **0 a 100**
 
-### 12. `ritmo_attivita`
+### 13. `bisogno_validazione`
+- numero intero da **0 a 100** (quanto cerca l'approvazione altrui)
+
+### 14. `energia_sociale`
+- numero intero da **0 a 100** (livello iniziale di batteria sociale)
+
+### 15. `umore`
+- stato d'animo iniziale (es. "curioso", "neutro", "irritato", "entusiasta")
+
+### 16. `ritmo_attivita`
 - valori ammessi: `"basso"`, `"medio"`, `"alto"`
 
 ---
@@ -104,6 +116,7 @@ L’avatar **non è umano**, ma interagisce come farebbe una persona reale sui s
 {
   "nome": "",
   "sesso": "",
+  "orientamento_sessuale": "",
   "lavoro": "",
   "orientamento_politico": "",
   "passioni": [
@@ -117,5 +130,8 @@ L’avatar **non è umano**, ma interagisce come farebbe una persona reale sui s
   "atteggiamento_verso_attualita": "",
   "propensione_al_conflitto": 0,
   "sensibilita_ai_like": 0,
+  "bisogno_validazione": 0,
+  "energia_sociale": 0,
+  "umore": "",
   "ritmo_attivita": ""
 }

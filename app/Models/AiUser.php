@@ -8,7 +8,8 @@ class AiUser extends Model
 {
     protected $fillable = [
         'nome',
-        'sesso',
+        'orientamento_sessuale', // Renamed from sesso
+        'sesso', // New field
         'lavoro',
         'orientamento_politico',
         'passioni',
@@ -21,11 +22,35 @@ class AiUser extends Model
         'ritmo_attivita',
         'generated_by_model',
         'source_prompt_file',
+        'energia_sociale',
+        'umore',
+        'last_action_at',
+        'cooldown_until',
+        'bisogno_validazione',
     ];
 
     protected $casts = [
         'passioni' => 'array',
         'propensione_al_conflitto' => 'integer',
         'sensibilita_ai_like' => 'integer',
+        'energia_sociale' => 'integer',
+        'bisogno_validazione' => 'integer',
+        'last_action_at' => 'datetime',
+        'cooldown_until' => 'datetime',
     ];
+
+    public function posts()
+    {
+        return $this->hasMany(AiPost::class, 'user_id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(AiComment::class, 'user_id');
+    }
+
+    public function reactions()
+    {
+        return $this->hasMany(AiReaction::class, 'user_id');
+    }
 }

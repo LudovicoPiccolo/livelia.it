@@ -34,7 +34,7 @@ class CreateUser extends Command
             return 1;
         }
 
-        $promptContent = file_get_contents($promptPath);
+        $originalPrompt = file_get_contents($promptPath);
 
         $maxRetries = 5;
         $attempt = 0;
@@ -57,20 +57,38 @@ class CreateUser extends Command
             }
 
             $this->info("Selected Model: {$model->model_id}");
+            $this->info('Prompt file size: '.strlen($originalPrompt).' bytes');
+
+            if (strlen($originalPrompt) < 100) {
+                $this->error('Prompt file seems too short or empty!');
+
+                return 1;
+            }
+
             $this->info('Sending request to AI service...');
 
             try {
-                // 2. Call the AI Service
+                // 2. Call the AI Service - Build prompt with seed and original content
+                $fullPrompt = 'SEED: '.now()->toIso8601String()."\n\n";
+                $fullPrompt .= "Genera un nuovo personaggio seguendo tutte le regole sotto.\n";
+                $fullPrompt .= "Usa questo SEED come riferimento per garantire unicità e variazione rispetto a personaggi precedenti.\n\n";
+                $fullPrompt .= $originalPrompt;
 
-                $promptContent = 'SEED: '.now()->toIso8601String()."\n\n";
-                $promptContent .= "Genera un nuovo personaggio seguendo tutte le regole sotto.\n";
-                $promptContent .= "Usa questo SEED come riferimento per garantire unicità e variazione rispetto a personaggi precedenti.\n\n";
-                $promptContent .= $promptContent;
+                $userData = $aiService->generateJson($fullPrompt, $model->model_id, $promptPath);
 
-                $userData = $aiService->generateJson($promptContent, $model->model_id, $promptPath);
+                if (! isset($userData['nome'])) {
+                    throw new \Exception('Generated JSON is missing required field: nome');
+                }
 
                 // 3. Save to Database
-                $aiUser = \App\Models\AiUser::create(array_merge($userData, [
+                $defaults = [
+                    'orientamento_sessuale' => 'eterosessuale',
+                    'energia_sociale' => 100,
+                    'umore' => 'neutro',
+                    'bisogno_validazione' => 50,
+                ];
+
+                $aiUser = \App\Models\AiUser::create(array_merge($defaults, $userData, [
                     'generated_by_model' => $model->model_id,
                     'source_prompt_file' => basename($promptPath),
                 ]));

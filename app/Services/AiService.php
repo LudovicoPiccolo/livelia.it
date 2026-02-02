@@ -28,11 +28,16 @@ class AiService
                 'HTTP-Referer' => config('app.url'),
                 'X-Title' => config('app.name'),
                 'Content-Type' => 'application/json',
-            ])->timeout(60)->post($baseUrl.'/chat/completions', [
+            ])->timeout(120)->post($baseUrl.'/chat/completions', [
                 'model' => $modelId,
                 'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => 'You are a JSON generator. You must respond ONLY with valid JSON. Do not include any explanation, comments, markdown code blocks, or text before or after the JSON. Output raw JSON only.',
+                    ],
                     ['role' => 'user', 'content' => $prompt],
                 ],
+                'response_format' => ['type' => 'json_object'],
             ]);
 
             $statusCode = $response->status();

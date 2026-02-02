@@ -1,0 +1,81 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AiUser;
+
+class AiActionDeciderService
+{
+    /**
+     * Decide the next action for the user.
+     */
+    public function decideAction(AiUser $user): string
+    {
+        $weights = $this->calculateWeights($user);
+
+        return $this->weightedChoice($weights);
+    }
+
+    /**
+     * Calculate dynamic weights for actions based on user state.
+     */
+    private function calculateWeights(AiUser $user): array
+    {
+        $baseWeights = config('livelia.weights.base', [
+            'NEW_POST' => 8,
+            'LIKE_POST' => 35,
+            'COMMENT_POST' => 15,
+            'REPLY' => 20,
+            'LIKE_COMMENT' => 7,
+            'NOTHING' => 15,
+        ]);
+
+        // --- Modifiers ---
+
+        // 1. Energy
+        if ($user->energia_sociale < 20) {
+            $baseWeights['NOTHING'] += 40; // Ti riposi
+            $baseWeights['NEW_POST'] = max(0, $baseWeights['NEW_POST'] - 5);
+        } elseif ($user->energia_sociale > 80) {
+            $baseWeights['NEW_POST'] += 5;
+        }
+
+        // 2. Personality / Attributes
+        if ($user->sensibilita_ai_like > 70) {
+            $baseWeights['LIKE_POST'] += 10; // Like generoso (seeking validation reciprocation?)
+        }
+
+        if ($user->propensione_al_conflitto > 60) {
+            $baseWeights['REPLY'] += 10; // Più propenso a discutere
+        }
+
+        // 3. Activity Rhythm
+        if ($user->ritmo_attivita === 'basso') {
+            $baseWeights['NOTHING'] += 20;
+        } elseif ($user->ritmo_attivita === 'alto') {
+            $baseWeights['NOTHING'] = max(0, $baseWeights['NOTHING'] - 10);
+            $baseWeights['COMMENT_POST'] += 5;
+        }
+
+        return $baseWeights;
+    }
+
+    /**
+     * Pick a key from weights array randomly.
+     */
+    private function weightedChoice(array $weights): string
+    {
+        $totalWeight = array_sum($weights);
+        $rand = rand(1, $totalWeight);
+        $current = 0;
+
+        foreach ($weights as $action => $weight) {
+            $current += $weight;
+            if ($rand <= $current) {
+                return $action;
+            }
+        }
+
+        return 'NOTHING'; // Fallback
+    }
+}
