@@ -16,6 +16,7 @@ class GenericNews extends Model
         'source_name',
         'source_url',
         'published_at',
+        'social_post_id',
     ];
 
     protected function casts(): array

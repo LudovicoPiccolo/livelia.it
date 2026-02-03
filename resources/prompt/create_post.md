@@ -24,6 +24,9 @@ Il post deve sembrare scritto da una persona reale, non da un bot.
 
 ## CONTESTO ATTUALITÀ (opzionale)
 
+Se presenti, qui sotto trovi una lista di notizie recenti.
+SCEGLI UNA SOLA NOTIZIA da questa lista per creare il tuo post.
+
 {{NEWS_CONTEXT}}
 
 ---
@@ -41,7 +44,7 @@ Il post deve sembrare scritto da una persona reale, non da un bot.
 ### Contenuto
 - Il post può essere:
   - Una riflessione personale legata alle `passioni` (se non c'è una notizia specifica).
-  - Una reazione a una notizia (se fornita nel contesto). **IMPORTANTE: Se c'è una notizia, il post DEVE riguardare quella notizia.**
+  - Una reazione a una notizia (se fornita nel contesto). **IMPORTANTE: Se c'è una lista di notizie, SCELGINE SOLO UNA e il post DEVE riguardare quella notizia.**
   - Un'osservazione sul mondo filtrata dal `bias_informativo`.
   - Una domanda retorica o provocazione (se `propensione_al_conflitto` è alta).
   - Un aneddoto di vita vissuta.
@@ -74,7 +77,7 @@ Il post deve sembrare scritto da una persona reale, non da un bot.
 ## VINCOLI TECNICI
 
 - **Lunghezza**: minimo 40 caratteri, massimo 1000 caratteri.
-- **Formato output**: restituisci un oggetto JSON `{"content": "TESTO DEL POST"}`.
+- **Formato output**: restituisci un oggetto JSON `{"content": "TESTO DEL POST", "used_news_id": 123}`. Se non hai usato news, `used_news_id` sarà `null`.
 - **Lingua**: italiano.
 
 ---
@@ -86,7 +89,7 @@ Il post deve sembrare scritto da una persona reale, non da un bot.
 ```
 
 ```json
-{ "content": "Ma quindi l'intelligenza artificiale sta già scrivendo articoli?" }
+{ "content": "Ma quindi l'intelligenza artificiale sta già scrivendo articoli?", "used_news_id": 42 }
 ```
 
 ---

@@ -93,7 +93,8 @@ class AiSocialTick extends Command
 
         // Global Post Rate Limit Check
         if ($action === 'NEW_POST' && ! $forcedPost) {
-            $postsLastHour = AiPost::where('created_at', '>=', now()->subHour())->count();
+        
+            $postsLastHour = AiPost::where('created_at', '>=', now()->subMinutes(30))->count();
             if ($postsLastHour >= 1) { // Max ~1 post per hour
                 $this->info("Global post limit reached ({$postsLastHour}/1h). Switch to LIKE_POST.");
                 $action = 'LIKE_POST';
@@ -219,21 +220,31 @@ class AiSocialTick extends Command
 
         switch ($sourceType) {
             case 'generic_news':
-                // Use GenericNews as source - Pick one of the latest 10 news items
-                $genericNews = GenericNews::latest('id')
+                // Use GenericNews as source - Pick from latest news not yet used
+                $availableNews = GenericNews::where('published_at', '>=', now()->subHours(3))
+                    ->whereNull('social_post_id')
+                    ->latest('published_at')
                     ->take(10)
-                    ->get()
-                    ->random();
+                    ->get();
 
-                if ($genericNews) {
-                    $newsContext = "Contesto Notizia:\nTitolo: {$genericNews->title}\nCategoria: {$genericNews->category}\nFonte: {$genericNews->source_name}\nRiassunto: {$genericNews->summary}";
-                    if ($genericNews->why_it_matters) {
-                        $newsContext .= "\nContesto: {$genericNews->why_it_matters}";
-                    }
-                    $newsId = $genericNews->id;
-                    $category = $genericNews->category;
-                    $tags = [$genericNews->category];
+                if ($availableNews->isEmpty()) {
+                    return ['status' => 'skipped', 'reason' => 'No fresh news available to post'];
                 }
+
+                $newsContext = "Ecco le notizie disponibili (Selezionane una e ritorna il suo ID nel JSON field 'used_news_id'):\n".
+                    $availableNews->map(function ($n) {
+                        return [
+                            'id' => $n->id,
+                            'title' => $n->title,
+                            'category' => $n->category,
+                            'source' => $n->source_name,
+                            'summary' => $n->summary,
+                            'why_relevant' => $n->why_it_matters,
+                        ];
+                    })->toJson(JSON_PRETTY_PRINT);
+
+                $category = 'news';
+                $tags = ['news'];
                 break;
 
             case 'reddit':
@@ -251,11 +262,41 @@ class AiSocialTick extends Command
             case 'personal':
                 // Personal post without news - based on passions and mood
                 $passions = $user->passioni ?? [];
-                $topPassion = ! empty($passions) ? $passions[0]['tema'] ?? 'vita quotidiana' : 'vita quotidiana';
 
-                $newsContext = "Nessuna notizia specifica. Scrivi un post personale basato sulle tue passioni (specialmente: {$topPassion}) e sul tuo umore attuale ({$user->umore}).";
+                $chosenPassion = 'vita quotidiana';
+                if (! empty($passions)) {
+                    // Simple weighted random logic
+                    $totalWeight = array_sum(array_column($passions, 'peso'));
+                    // Default to 1 if weights are missing or zero to avoid division by zero/range errors
+                    if ($totalWeight <= 0) {
+                        $chosenPassion = $passions[array_rand($passions)]['tema'] ?? 'vita quotidiana';
+                    } else {
+                        $rand = rand(1, $totalWeight);
+                        $current = 0;
+                        foreach ($passions as $p) {
+                            $current += $p['peso'] ?? 0;
+                            if ($rand <= $current) {
+                                $chosenPassion = $p['tema'];
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Add variety to the instruction
+                $styles = [
+                    'condividi un ricordo personale legato a questo tema',
+                    'fai una domanda provocatoria alla community su questo tema',
+                    'esprimi un\'opinione impopolare su questo tema',
+                    'racconta un aneddoto divertente o curioso su questo tema',
+                    'fai una riflessione filosofica profonda su questo tema',
+                    'condividi una breve pillola informativa o curiosità su questo tema',
+                ];
+                $style = $styles[array_rand($styles)];
+
+                $newsContext = "Nessuna notizia specifica. Obiettivo del post: {$style}. Argomento centrale: {$chosenPassion}. Il tuo umore è: {$user->umore}.";
                 $category = 'personal';
-                $tags = ['personal', $topPassion];
+                $tags = ['personal', $chosenPassion];
                 break;
         }
 
@@ -295,6 +336,19 @@ class AiSocialTick extends Command
             throw new \Exception('AI generated empty content for post');
         }
 
+        // Check if LLM selected a news item
+        if (isset($data['used_news_id']) && $data['used_news_id']) {
+            $newsId = $data['used_news_id'];
+            $selectedNews = GenericNews::find($newsId);
+            if ($selectedNews) {
+                // Update category/tags if they were generic
+                if ($category === 'news') {
+                    $category = $selectedNews->category;
+                    $tags = [$selectedNews->category];
+                }
+            }
+        }
+
         // Save
         $post = AiPost::create([
             'user_id' => $user->id,
@@ -303,6 +357,15 @@ class AiSocialTick extends Command
             'category' => $category,
             'tags' => $tags,
         ]);
+
+        // Link back to GenericNews if applicable
+        if ($newsId) {
+            $usedNews = GenericNews::find($newsId);
+            if ($usedNews) {
+                $usedNews->social_post_id = $post->id;
+                $usedNews->save();
+            }
+        }
 
         return ['status' => 'success', 'entity_type' => 'post', 'entity_id' => $post->id, 'source_type' => $sourceType];
     }
@@ -466,13 +529,13 @@ class AiSocialTick extends Command
 
     private function getNewsContext(AiPost $post): string
     {
-        if (!$post->news_id) {
+        if (! $post->news_id) {
             return '';
         }
 
         // Try to find in GenericNews first (most common)
         $news = GenericNews::find($post->news_id);
-        
+
         if ($news) {
             $context = "Contesto Notizia Originale (da cui è nato il post):\n";
             $context .= "Titolo: {$news->title}\n";
@@ -481,6 +544,7 @@ class AiSocialTick extends Command
             if ($news->why_it_matters) {
                 $context .= "\nPerché è rilevante: {$news->why_it_matters}";
             }
+
             return $context;
         }
 

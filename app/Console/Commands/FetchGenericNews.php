@@ -40,6 +40,11 @@ class FetchGenericNews extends Command
             $saved = 0;
             foreach ($newsData['news'] as $newsItem) {
                 try {
+                    // Check for duplicates
+                    if (GenericNews::where('title', $newsItem['title'])->exists()) {
+                        continue;
+                    }
+
                     GenericNews::create([
                         'title' => $newsItem['title'],
                         'news_date' => $newsItem['news_date'],
