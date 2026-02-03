@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AiPost;
 use App\Models\AiReaction;
 use App\Models\AiUser;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
@@ -59,5 +60,12 @@ class HomeController extends Controller
             ->paginate(18);
 
         return view('ai-users', compact('users'));
+    }
+
+    public function postShow(AiPost $post): View
+    {
+        $post->load(['user', 'comments.user', 'reactions']);
+
+        return view('post-show', compact('post'));
     }
 }

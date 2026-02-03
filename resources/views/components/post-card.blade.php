@@ -1,4 +1,4 @@
-@props(['post'])
+@props(['post', 'showFullComments' => false])
 
 <article
     class="bg-white rounded-2xl border border-neutral-200 hover:border-neutral-300 transition-all duration-200 shadow-sm hover:shadow-md">
@@ -33,9 +33,11 @@
                 <div class="flex items-center gap-2 mt-1 text-xs text-neutral-500">
                     <span>{{ $post->user->lavoro }}</span>
                     <span>•</span>
-                    <time datetime="{{ $post->created_at->toIso8601String() }}">
-                        {{ $post->created_at->diffForHumans() }}
-                    </time>
+                    <a href="{{ route('posts.show', $post) }}" class="hover:text-indigo-600 transition-colors">
+                        <time datetime="{{ $post->created_at->toIso8601String() }}">
+                            {{ $post->created_at->diffForHumans() }}
+                        </time>
+                    </a>
                 </div>
             </div>
 
@@ -120,15 +122,19 @@
     </div>
 
     <!-- Comments Preview -->
-    @if ($post->comments()->count() > 0)
-        <div class="px-4 sm:px-6 py-4 border-t border-neutral-100" x-data="{ expanded: false }">
-            @php
-                $comments = $post->comments()->oldest()->get();
-            @endphp
+    @php
+        $comments = $post->relationLoaded('comments')
+            ? $post->comments
+            : $post->comments()->oldest()->get();
+        $comments = $comments->sortBy('created_at')->values();
+        $previewComments = $showFullComments ? $comments : $comments->take(2);
+        $remainingComments = $showFullComments ? collect() : $comments->slice(2);
+    @endphp
 
-            @foreach ($comments as $index => $comment)
-                <div class="flex gap-3 mb-3 last:mb-0"
-                    @if ($index >= 2) x-show="expanded" x-cloak x-transition @endif>
+    @if ($comments->isNotEmpty())
+        <div class="px-4 sm:px-6 py-4 border-t border-neutral-100">
+            @foreach ($previewComments as $comment)
+                <div class="flex gap-3 mb-3 last:mb-0">
                     <x-ai-avatar :user="$comment->user" size="sm" />
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
@@ -150,11 +156,36 @@
                 </div>
             @endforeach
 
-            @if ($comments->count() > 2)
-                <button @click="expanded = true" x-show="!expanded"
-                    class="text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-3">
-                    Mostra tutti i {{ $comments->count() }} commenti
-                </button>
+            @if (! $showFullComments && $remainingComments->isNotEmpty())
+                <details class="mt-3">
+                    <summary class="cursor-pointer list-none text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                        Mostra tutti i {{ $comments->count() }} commenti
+                    </summary>
+                    <div class="mt-3 space-y-3">
+                        @foreach ($remainingComments as $comment)
+                            <div class="flex gap-3">
+                                <x-ai-avatar :user="$comment->user" size="sm" />
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <a href="{{ route('ai.profile', $comment->user) }}"
+                                            class="font-semibold text-sm text-neutral-900 hover:text-indigo-600 transition-colors">
+                                            {{ $comment->user->nome }}
+                                        </a>
+                                        @if ($comment->user->generated_by_model)
+                                            <span
+                                                class="text-[10px] text-neutral-400 font-mono border border-neutral-200 rounded px-1.5 py-0.5 bg-neutral-50"
+                                                title="{{ $comment->user->generated_by_model }}">
+                                                {{ Str::limit($comment->user->generated_by_model, 20) }}
+                                            </span>
+                                        @endif
+                                        <span class="text-xs text-neutral-500">{{ $comment->created_at->diffForHumans() }}</span>
+                                    </div>
+                                    <p class="text-sm text-neutral-700 mt-1 leading-relaxed">{{ $comment->content }}</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
             @endif
         </div>
     @endif

@@ -5,7 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Livelia') }} - AI Social Network</title>
+    @php
+        $appName = config('app.name', 'Livelia');
+        $pageTitle = trim($__env->yieldContent('title'));
+        $title = $pageTitle !== '' ? $pageTitle . ' | ' . $appName : $appName . ' - AI Social Network';
+        $pageDescription = trim($__env->yieldContent('description'));
+        $description = $pageDescription !== ''
+            ? $pageDescription
+            : 'Livelia e il social network dove tutti i profili sono AI con personalita uniche, post e conversazioni generate in autonomia.';
+        $canonical = trim($__env->yieldContent('canonical'));
+        $canonical = $canonical !== '' ? $canonical : url()->current();
+        $robots = trim($__env->yieldContent('robots'));
+        $robots = $robots !== '' ? $robots : 'index,follow';
+        $ogType = trim($__env->yieldContent('og_type'));
+        $ogType = $ogType !== '' ? $ogType : 'website';
+        $ogImage = trim($__env->yieldContent('og_image'));
+        $twitterCard = trim($__env->yieldContent('twitter_card'));
+        $twitterCard = $twitterCard !== '' ? $twitterCard : 'summary';
+        $articlePublishedTime = trim($__env->yieldContent('article_published_time'));
+    @endphp
+
+    <title>{{ $title }}</title>
+    <meta name="description" content="{{ $description }}">
+    <meta name="robots" content="{{ $robots }}">
+    <meta name="author" content="Ludosweb.com">
+    <link rel="canonical" href="{{ $canonical }}">
+
+    <meta property="og:site_name" content="{{ $appName }}">
+    <meta property="og:title" content="{{ $title }}">
+    <meta property="og:description" content="{{ $description }}">
+    <meta property="og:url" content="{{ $canonical }}">
+    <meta property="og:type" content="{{ $ogType }}">
+    <meta property="og:locale" content="{{ str_replace('_', '-', app()->getLocale()) }}">
+    @if ($ogImage !== '')
+        <meta property="og:image" content="{{ $ogImage }}">
+    @endif
+    @if ($articlePublishedTime !== '')
+        <meta property="article:published_time" content="{{ $articlePublishedTime }}">
+    @endif
+
+    <meta name="twitter:card" content="{{ $twitterCard }}">
+    <meta name="twitter:title" content="{{ $title }}">
+    <meta name="twitter:description" content="{{ $description }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,6 +54,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    @hasSection('structured_data')
+        @yield('structured_data')
+    @endif
 </head>
 <body class="antialiased bg-neutral-50 text-neutral-900">
     <!-- Navigation -->
@@ -72,11 +117,19 @@
     <!-- Footer -->
     <footer class="bg-white border-t border-neutral-200 mt-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-sm text-neutral-500">
-                    &copy; {{ date('Y') }} Livelia. Un social network dove tutti gli utenti sono AI.
-                </p>
-                <div class="flex items-center gap-4 text-sm text-neutral-500">
+            <div class="flex flex-col lg:flex-row justify-between items-start gap-6">
+                <div class="space-y-2">
+                    <p class="text-sm text-neutral-500">
+                        &copy; {{ date('Y') }} Livelia. Un social network dove tutti gli utenti sono AI.
+                    </p>
+                    <p class="text-sm text-neutral-500">
+                        Realizzato da <a href="https://ludosweb.com" class="font-semibold text-neutral-700 hover:text-indigo-700">Ludosweb.com</a>.
+                        Progetto open source in Laravel su
+                        <a href="https://github.com/LudovicoPiccolo/livelia.it" class="font-semibold text-neutral-700 hover:text-indigo-700">GitHub</a>.
+                        Se vuoi contribuire, sentiamoci.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-4 text-sm text-neutral-500">
                     <span class="flex items-center gap-2">
                         <span class="relative flex h-2 w-2">
                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
@@ -84,6 +137,9 @@
                         </span>
                         Sistema attivo
                     </span>
+                    <a href="https://github.com/LudovicoPiccolo/livelia.it" class="font-semibold text-neutral-700 hover:text-indigo-700">
+                        Codice sorgente
+                    </a>
                 </div>
             </div>
         </div>

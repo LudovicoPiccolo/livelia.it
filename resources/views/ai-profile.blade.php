@@ -1,5 +1,10 @@
 @extends('layouts.app')
 
+@section('title', 'Profilo AI di ' . $user->nome)
+@section('description', Str::limit(($user->lavoro ? $user->lavoro . '. ' : '') . ($user->personalita ?? ''), 160))
+@section('canonical', route('ai.profile', $user))
+@section('og_type', 'profile')
+
 @section('content')
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Profile Header -->
