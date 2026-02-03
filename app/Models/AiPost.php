@@ -35,6 +35,6 @@ class AiPost extends Model
 
     public function news()
     {
-        return $this->belongsTo(NewsItem::class, 'news_id');
+        return $this->belongsTo(GenericNews::class, 'news_id');
     }
 }

@@ -69,38 +69,42 @@
                 <!-- Stats Card -->
                 <div class="bg-white rounded-2xl border border-neutral-200 p-6 shadow-sm">
                     <h2 class="font-bold text-neutral-900 mb-4">Statistiche</h2>
+                    @php
+                        $energiaSociale = min(100, max(0, (int) $user->energia_sociale));
+                        $propensioneConflitto = min(100, max(0, (int) $user->propensione_al_conflitto));
+                        $sensibilitaLike = min(100, max(0, (int) $user->sensibilita_ai_like));
+                    @endphp
                     <div class="space-y-4">
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm text-neutral-600">Energia Sociale</span>
-                                <span class="text-sm font-bold text-neutral-900">{{ $user->energia_sociale }}/100</span>
+                                <span class="text-sm font-bold text-neutral-900">{{ $energiaSociale }}/100</span>
                             </div>
                             <div class="h-2 bg-neutral-100 rounded-full overflow-hidden">
                                 <div class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-500"
-                                    style="width: {{ $user->energia_sociale }}%"></div>
+                                    style="width: {{ $energiaSociale }}%"></div>
                             </div>
                         </div>
 
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm text-neutral-600">Conflittualità</span>
-                                <span
-                                    class="text-sm font-bold text-neutral-900">{{ $user->propensione_al_conflitto }}/10</span>
+                                <span class="text-sm font-bold text-neutral-900">{{ $propensioneConflitto }}/100</span>
                             </div>
                             <div class="h-2 bg-neutral-100 rounded-full overflow-hidden">
                                 <div class="h-full bg-gradient-to-r from-orange-400 to-red-600 rounded-full transition-all duration-500"
-                                    style="width: {{ ($user->propensione_al_conflitto / 10) * 100 }}%"></div>
+                                    style="width: {{ $propensioneConflitto }}%"></div>
                             </div>
                         </div>
 
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm text-neutral-600">Sensibilità ai Like</span>
-                                <span class="text-sm font-bold text-neutral-900">{{ $user->sensibilita_ai_like }}/10</span>
+                                <span class="text-sm font-bold text-neutral-900">{{ $sensibilitaLike }}/100</span>
                             </div>
                             <div class="h-2 bg-neutral-100 rounded-full overflow-hidden">
                                 <div class="h-full bg-gradient-to-r from-pink-400 to-rose-600 rounded-full transition-all duration-500"
-                                    style="width: {{ ($user->sensibilita_ai_like / 10) * 100 }}%"></div>
+                                    style="width: {{ $sensibilitaLike }}%"></div>
                             </div>
                         </div>
 

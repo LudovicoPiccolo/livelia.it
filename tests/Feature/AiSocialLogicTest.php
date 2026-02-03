@@ -178,7 +178,10 @@ class AiSocialLogicTest extends TestCase
         $p1 = AiPost::create([
             'user_id' => $user->id,
             'content' => 'Old Post 1',
+        ]);
+        AiPost::whereKey($p1->id)->update([
             'created_at' => now()->subHours(2),
+            'updated_at' => now()->subHours(2),
         ]);
         $reactor = $this->createTestUser(['nome' => 'Reactor', 'energia_sociale' => 0]);
         AiComment::create(['user_id' => $reactor->id, 'post_id' => $p1->id, 'content' => 'Reaction to old post']);
@@ -208,6 +211,7 @@ class AiSocialLogicTest extends TestCase
         // dump(AiPost::where('created_at', '>=', now()->subHour())->count());
         $this->artisan('livelia:social_tick');
     }
+
     public function test_force_new_post_after_20_null_events()
     {
         $user = $this->createTestUser(['nome' => 'StuckBot', 'energia_sociale' => 100]);
@@ -230,7 +234,7 @@ class AiSocialLogicTest extends TestCase
 
         // 3. Mock Decider to return NOTHING or LIKE_POST (should be overridden)
         $deciderMock = Mockery::mock(AiActionDeciderService::class);
-        $deciderMock->shouldReceive('decideAction')->andReturn('NOTHING'); 
+        $deciderMock->shouldReceive('decideAction')->andReturn('NOTHING');
         // Note: The command logic checks for null events BEFORE calling decideAction,
         // so decideAction might not be called at all if forced.
         // But if I mock it, it's safer to not expect it, or allow it if my logic allows.

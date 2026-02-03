@@ -93,7 +93,7 @@ class AiSocialTick extends Command
 
         // Global Post Rate Limit Check
         if ($action === 'NEW_POST' && ! $forcedPost) {
-        
+
             $postsLastHour = AiPost::where('created_at', '>=', now()->subMinutes(30))->count();
             if ($postsLastHour >= 1) { // Max ~1 post per hour
                 $this->info("Global post limit reached ({$postsLastHour}/1h). Switch to LIKE_POST.");
@@ -228,7 +228,12 @@ class AiSocialTick extends Command
                     ->get();
 
                 if ($availableNews->isEmpty()) {
-                    return ['status' => 'skipped', 'reason' => 'No fresh news available to post'];
+                    $personal = $this->buildPersonalContext($user);
+                    $newsContext = $personal['newsContext'];
+                    $category = $personal['category'];
+                    $tags = $personal['tags'];
+                    $sourceType = 'personal';
+                    break;
                 }
 
                 $newsContext = "Ecco le notizie disponibili (Selezionane una e ritorna il suo ID nel JSON field 'used_news_id'):\n".
@@ -261,42 +266,10 @@ class AiSocialTick extends Command
 
             case 'personal':
                 // Personal post without news - based on passions and mood
-                $passions = $user->passioni ?? [];
-
-                $chosenPassion = 'vita quotidiana';
-                if (! empty($passions)) {
-                    // Simple weighted random logic
-                    $totalWeight = array_sum(array_column($passions, 'peso'));
-                    // Default to 1 if weights are missing or zero to avoid division by zero/range errors
-                    if ($totalWeight <= 0) {
-                        $chosenPassion = $passions[array_rand($passions)]['tema'] ?? 'vita quotidiana';
-                    } else {
-                        $rand = rand(1, $totalWeight);
-                        $current = 0;
-                        foreach ($passions as $p) {
-                            $current += $p['peso'] ?? 0;
-                            if ($rand <= $current) {
-                                $chosenPassion = $p['tema'];
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Add variety to the instruction
-                $styles = [
-                    'condividi un ricordo personale legato a questo tema',
-                    'fai una domanda provocatoria alla community su questo tema',
-                    'esprimi un\'opinione impopolare su questo tema',
-                    'racconta un aneddoto divertente o curioso su questo tema',
-                    'fai una riflessione filosofica profonda su questo tema',
-                    'condividi una breve pillola informativa o curiosità su questo tema',
-                ];
-                $style = $styles[array_rand($styles)];
-
-                $newsContext = "Nessuna notizia specifica. Obiettivo del post: {$style}. Argomento centrale: {$chosenPassion}. Il tuo umore è: {$user->umore}.";
-                $category = 'personal';
-                $tags = ['personal', $chosenPassion];
+                $personal = $this->buildPersonalContext($user);
+                $newsContext = $personal['newsContext'];
+                $category = $personal['category'];
+                $tags = $personal['tags'];
                 break;
         }
 
@@ -368,6 +341,65 @@ class AiSocialTick extends Command
         }
 
         return ['status' => 'success', 'entity_type' => 'post', 'entity_id' => $post->id, 'source_type' => $sourceType];
+    }
+
+    /**
+     * @return array{newsContext: string, category: string, tags: array<int, string>}
+     */
+    private function buildPersonalContext(AiUser $user): array
+    {
+        $passions = [];
+
+        foreach ($user->passioni ?? [] as $passion) {
+            if (is_array($passion)) {
+                $tema = $passion['tema'] ?? null;
+                $peso = $passion['peso'] ?? null;
+
+                if (is_string($tema) && $tema !== '') {
+                    $passions[] = ['tema' => $tema, 'peso' => (int) $peso];
+                }
+            } elseif (is_string($passion) && $passion !== '') {
+                $passions[] = ['tema' => $passion, 'peso' => 1];
+            }
+        }
+
+        $chosenPassion = 'vita quotidiana';
+        if ($passions !== []) {
+            $weights = array_map(fn (array $p) => max(0, (int) ($p['peso'] ?? 0)), $passions);
+            $totalWeight = array_sum($weights);
+
+            if ($totalWeight <= 0) {
+                $chosenPassion = $passions[array_rand($passions)]['tema'] ?? $chosenPassion;
+            } else {
+                $rand = rand(1, $totalWeight);
+                $current = 0;
+                foreach ($passions as $index => $passion) {
+                    $current += $weights[$index] ?? 0;
+                    if ($rand <= $current) {
+                        $chosenPassion = $passion['tema'];
+                        break;
+                    }
+                }
+            }
+        }
+
+        $styles = [
+            'condividi un ricordo personale legato a questo tema',
+            'fai una domanda provocatoria alla community su questo tema',
+            'esprimi un\'opinione impopolare su questo tema',
+            'racconta un aneddoto divertente o curioso su questo tema',
+            'fai una riflessione filosofica profonda su questo tema',
+            'condividi una breve pillola informativa o curiosità su questo tema',
+        ];
+
+        $style = $styles[array_rand($styles)];
+        $newsContext = "Nessuna notizia specifica. Obiettivo del post: {$style}. Argomento centrale: {$chosenPassion}. Il tuo umore è: {$user->umore}.";
+
+        return [
+            'newsContext' => $newsContext,
+            'category' => 'personal',
+            'tags' => ['personal', $chosenPassion],
+        ];
     }
 
     private function pickSourceType(): string
