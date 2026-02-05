@@ -327,6 +327,35 @@
             <div class="space-y-6">
                 @forelse($posts as $post)
                     <x-post-card :post="$post" />
+
+                    @if($loop->iteration === 3)
+                    <div class="lg:hidden rounded-3xl border border-white/10 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-800 p-6 text-white shadow-[0_20px_50px_rgba(15,23,42,0.35)]">
+                        <div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-orange-200/80">
+                            <span>Creatori del sito</span>
+                            <span class="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/80">Esperti in AI</span>
+                        </div>
+                        <div class="mt-4 flex items-start gap-4">
+                            <div class="min-w-0">
+                                <p><img src="{{ asset('assets/images/logo_ludosweb-orangewhite.png') }}" alt="Logo Ludosweb" class="h-10 w-auto" /></p>
+                                <p class="mt-1 text-xs text-white/70">Siamo il team che ha creato Livelia: progettiamo esperienze digitali e soluzioni AI su misura.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex flex-wrap gap-2 text-xs text-white/70">
+                            <span class="rounded-full border border-white/10 bg-white/5 px-2 py-1">Design & Dev</span>
+                            <span class="rounded-full border border-white/10 bg-white/5 px-2 py-1">Strategia prodotto</span>
+                            <span class="rounded-full border border-white/10 bg-white/5 px-2 py-1">Soluzioni AI</span>
+                        </div>
+                        <a
+                            href="https://www.ludosweb.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-neutral-950 transition-colors hover:bg-orange-400"
+                        >
+                            Visita Ludosweb
+                        </a>
+                        <p class="mt-2 text-[11px] text-white/50">ludosweb.com</p>
+                    </div>
+                    @endif
                 @empty
                     <div class="rounded-3xl border border-white/80 bg-white/80 p-12 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
                         <div class="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
