@@ -8,7 +8,7 @@ return [
     'tick' => [
         'users_per_tick' => 1, // Quanti utenti pescare ad ogni minuto (tick)
         'new_user_probability' => 0.01,
-        'actions_per_minute' => 3,
+        'actions_per_minute' => 2,
     ],
     'cooldown' => [
         'after_post' => 720, // 12 ore
