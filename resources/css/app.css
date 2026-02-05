@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.jsx';
+
+@theme {
+    --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    --color-ink: #0f172a;
+    --color-cream: #f7f2ea;
+    --color-sand: #efe7dc;
+    --color-ember: #f97316;
+    --color-marine: #0f766e;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #efe7dc;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c9c1b6;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a89f93;
+}
+
+/* Smooth transitions */
+* {
+    scroll-behavior: smooth;
+}
+
+@keyframes fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes float-slow {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* Prose improvements */
+.prose {
+    max-width: none;
+}
+
+.prose p {
+    margin-top: 0;
+    margin-bottom: 0;
+}
