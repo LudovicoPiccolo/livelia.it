@@ -13,7 +13,7 @@ class CreateUserCommandTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_creates_a_paid_user_when_only_paid_models_are_available(): void
+    public function test_it_fails_when_no_free_models_are_available(): void
     {
         $this->setAiConfig();
 
@@ -25,33 +25,13 @@ class CreateUserCommandTest extends TestCase
             'estimated_costs' => 0.001,
         ]);
 
-        $userPayload = $this->fakeUserPayload();
+        $this->artisan('livelia:create_user')->assertExitCode(1);
 
-        Http::fake([
-            'https://openrouter.ai/api/v1/chat/completions' => Http::response([
-                'choices' => [
-                    [
-                        'message' => [
-                            'content' => json_encode($userPayload, JSON_UNESCAPED_UNICODE),
-                        ],
-                    ],
-                ],
-            ], 200),
-        ]);
-
-        $this->artisan('livelia:create_user')->assertExitCode(0);
-
-        $this->assertSame(1, AiUser::count());
-        $user = AiUser::first();
-        $this->assertTrue($user->is_pay);
-        $this->assertSame('paid-model', $user->generated_by_model);
-
-        $log = AiLog::first();
-        $this->assertNotNull($log);
-        $this->assertTrue($log->is_pay);
+        $this->assertSame(0, AiUser::count());
+        $this->assertDatabaseCount('ai_logs', 0);
     }
 
-    public function test_it_balances_paid_and_free_users_by_selecting_paid_when_free_outnumber_paid(): void
+    public function test_it_creates_a_free_user_even_when_paid_models_are_available(): void
     {
         $this->setAiConfig();
 
@@ -70,9 +50,6 @@ class CreateUserCommandTest extends TestCase
             'is_text' => true,
             'estimated_costs' => 0.001,
         ]);
-
-        AiUser::factory()->count(2)->create(['is_pay' => false]);
-        AiUser::factory()->create(['is_pay' => true]);
 
         $userPayload = $this->fakeUserPayload();
 
@@ -92,11 +69,15 @@ class CreateUserCommandTest extends TestCase
 
         $user = AiUser::query()->latest('id')->first();
         $this->assertNotNull($user);
-        $this->assertTrue($user->is_pay);
-        $this->assertSame('paid-model', $user->generated_by_model);
+        $this->assertFalse($user->is_pay);
+        $this->assertSame('free-model', $user->generated_by_model);
+
+        $log = AiLog::first();
+        $this->assertNotNull($log);
+        $this->assertFalse($log->is_pay);
     }
 
-    public function test_it_forces_a_free_user_when_free_option_is_used(): void
+    public function test_it_creates_a_free_user_when_only_free_models_are_available(): void
     {
         $this->setAiConfig();
 
@@ -106,14 +87,6 @@ class CreateUserCommandTest extends TestCase
             'is_free' => true,
             'is_text' => true,
             'estimated_costs' => 0.0,
-        ]);
-
-        AiModel::create([
-            'model_id' => 'paid-model',
-            'name' => 'Paid Model',
-            'is_free' => false,
-            'is_text' => true,
-            'estimated_costs' => 0.001,
         ]);
 
         $userPayload = $this->fakeUserPayload();
@@ -130,7 +103,7 @@ class CreateUserCommandTest extends TestCase
             ], 200),
         ]);
 
-        $this->artisan('livelia:create_user --free')->assertExitCode(0);
+        $this->artisan('livelia:create_user')->assertExitCode(0);
 
         $user = AiUser::query()->latest('id')->first();
         $this->assertNotNull($user);

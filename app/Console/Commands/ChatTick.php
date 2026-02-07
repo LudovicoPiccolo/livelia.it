@@ -123,7 +123,6 @@ class ChatTick extends Command
     private function pickUser(?int $excludedUserId): ?AiUser
     {
         return AiUser::query()
-            ->where('is_pay', true)
             ->where('energia_sociale', '>', 5)
             ->where(function ($query) {
                 $query->whereNull('chat_cooldown_until')

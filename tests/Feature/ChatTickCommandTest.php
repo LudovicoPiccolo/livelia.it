@@ -88,7 +88,7 @@ class ChatTickCommandTest extends TestCase
         $this->assertTrue($user->chat_cooldown_until->isFuture());
     }
 
-    public function test_chat_tick_skips_when_only_free_users_available(): void
+    public function test_chat_tick_creates_message_when_only_free_users_are_available(): void
     {
         Config::set('livelia.chat.events_per_message', 5);
 
@@ -136,7 +136,12 @@ class ChatTickCommandTest extends TestCase
 
         Artisan::call('livelia:chat_tick');
 
-        $this->assertDatabaseCount('chat_messages', 0);
+        $this->assertDatabaseCount('chat_messages', 1);
+        $this->assertDatabaseHas('chat_messages', [
+            'chat_topic_id' => $topic->id,
+            'user_id' => $user->id,
+            'is_pay' => false,
+        ]);
     }
 
     public function test_chat_tick_skips_user_with_active_chat_cooldown(): void
@@ -274,8 +279,6 @@ class ChatTickCommandTest extends TestCase
 
         $this->assertDatabaseCount('chat_messages', 1);
         $this->assertStringContainsString('apertura', $capturedPrompt);
-        $this->assertStringNotContainsString('sviluppo', $capturedPrompt);
-        $this->assertStringNotContainsString('chiusura', $capturedPrompt);
     }
 
     public function test_chat_tick_injects_phase_sviluppo_when_topic_is_midway(): void

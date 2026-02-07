@@ -17,14 +17,14 @@ class CreateUser extends Command
      *
      * @var string
      */
-    protected $signature = 'livelia:create_user {--free : Force the command to use a free AI model}';
+    protected $signature = 'livelia:create_user';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Create a new AI user using a free or low-cost AI model and a predefined prompt';
+    protected $description = 'Create a new AI user using a free AI model and a predefined prompt';
 
     /**
      * Execute the console command.
@@ -42,24 +42,16 @@ class CreateUser extends Command
         }
 
         $maxRetries = 5;
-        $forceFreeModel = (bool) $this->option('free');
         $attempt = 0;
 
         while ($attempt < $maxRetries) {
             $attempt++;
             $this->info("Attempt {$attempt} of {$maxRetries}...");
 
-            $maxEstimatedCost = (float) config('livelia.ai_models.max_estimated_cost', 0.002);
-
-            if ($forceFreeModel) {
-                $model = $this->freeModelsQuery()->inRandomOrder(rand())->first();
-            } else {
-                $shouldCreatePaidUser = $this->shouldCreatePaidUser();
-                $model = $this->selectModelForNewUser($shouldCreatePaidUser, $maxEstimatedCost);
-            }
+            $model = $this->freeModelsQuery()->inRandomOrder(rand())->first();
 
             if (! $model) {
-                $this->error('No eligible AI model available.');
+                $this->error('No eligible free AI model available.');
 
                 return 1;
             }
@@ -107,13 +99,9 @@ class CreateUser extends Command
                     'bisogno_validazione' => 50,
                 ];
 
-                $isPayModel = ! $model->is_free
-                    && $model->estimated_costs !== null
-                    && (float) $model->estimated_costs > 0;
-
                 $aiUser = AiUser::create(array_merge($defaults, $userData, [
                     'generated_by_model' => $model->model_id,
-                    'is_pay' => $isPayModel,
+                    'is_pay' => false,
                     'source_prompt_file' => $promptFile,
                 ]));
 
@@ -135,53 +123,11 @@ class CreateUser extends Command
         return 1;
     }
 
-    private function shouldCreatePaidUser(): bool
-    {
-        $freeUsers = AiUser::query()->where('is_pay', false)->count();
-        $paidUsers = AiUser::query()->where('is_pay', true)->count();
-
-        if ($freeUsers === $paidUsers) {
-            return (bool) random_int(0, 1);
-        }
-
-        return $paidUsers < $freeUsers;
-    }
-
-    private function selectModelForNewUser(bool $shouldCreatePaidUser, float $maxEstimatedCost): ?AiModel
-    {
-        $preferredQuery = $shouldCreatePaidUser
-            ? $this->paidModelsQuery($maxEstimatedCost)
-            : $this->freeModelsQuery();
-
-        $model = $preferredQuery->inRandomOrder(rand())->first();
-
-        if ($model) {
-            return $model;
-        }
-
-        $fallbackQuery = $shouldCreatePaidUser
-            ? $this->freeModelsQuery()
-            : $this->paidModelsQuery($maxEstimatedCost);
-
-        return $fallbackQuery->inRandomOrder(rand())->first();
-    }
-
     private function freeModelsQuery(): Builder
     {
         return AiModel::query()
             ->where('is_text', true)
             ->whereNull('deleted_at')
             ->where('is_free', true);
-    }
-
-    private function paidModelsQuery(float $maxEstimatedCost): Builder
-    {
-        return AiModel::query()
-            ->where('is_text', true)
-            ->whereNull('deleted_at')
-            ->where('is_free', false)
-            ->whereNotNull('estimated_costs')
-            ->where('estimated_costs', '>', 0)
-            ->where('estimated_costs', '<=', $maxEstimatedCost);
     }
 }
