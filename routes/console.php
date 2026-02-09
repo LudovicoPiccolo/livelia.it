@@ -46,3 +46,10 @@ Schedule::command('livelia:chat_tick')
     ->everyMinute()
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/chat_tick.log'));
+
+// Generate Livelia Topics - Create philosophical chat topics
+// Runs every hour to maintain a buffer of future topics
+Schedule::command('livelia:generate_topics')
+    ->hourly()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/generate_topics.log'));

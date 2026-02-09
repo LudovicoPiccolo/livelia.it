@@ -49,7 +49,7 @@ return [
         ],
     ],
     'chat' => [
-        'events_per_message' => 100,
+        'events_per_message' => 50,
         'cooldown_hours' => 24,
     ],
     'contact' => [

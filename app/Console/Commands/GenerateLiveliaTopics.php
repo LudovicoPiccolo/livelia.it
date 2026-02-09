@@ -18,7 +18,7 @@ class GenerateLiveliaTopics extends Command
      * @var string
      */
     protected $signature = 'livelia:generate_topics
-                            {--max-days=10 : Genera topic finché il campo "to" massimo è entro questo numero di giorni da oggi}
+                            {--max-days=8 : Genera topic finché il campo "to" massimo è entro questo numero di giorni da oggi}
                             {--dry-run : Mostra cosa verrebbe generato senza inserire record}';
 
     /**
