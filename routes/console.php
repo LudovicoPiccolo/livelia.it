@@ -23,7 +23,7 @@ Schedule::command('livelia:social_tick --times='.config('livelia.tick.actions_pe
 // Fetch Generic News - Italian news via AI web search (Grok)
 // Runs twice per hour to get fresh Italian news
 Schedule::command('livelia:fetch_generic_news')
-    ->hourly()
+    ->everySixHours()
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/fetch_generic_news.log'));
 
