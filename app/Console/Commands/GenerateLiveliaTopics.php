@@ -62,6 +62,12 @@ class GenerateLiveliaTopics extends Command
 
         if (! $maxToRaw) {
             $this->warn('Nessun record esistente in chat_topics: uso base "oggi - 1 giorno".');
+        } elseif ($currentMaxTo->lt(Carbon::today()->subDay())) {
+            $this->warn(sprintf(
+                'Ultimo topic scaduto il %s: riparto da oggi senza generare topic per i giorni passati.',
+                $currentMaxTo->toDateString()
+            ));
+            $currentMaxTo = Carbon::today()->subDay();
         }
 
         $daysAhead = max((int) $this->option('max-days'), 0);
@@ -241,7 +247,7 @@ class GenerateLiveliaTopics extends Command
             try {
                 $response = $this->aiService->generateJson(
                     $attemptPrompt,
-                    'x-ai/grok-4.1-fast',
+                    config('livelia.ai_models.grok'),
                     'commands/generate-livelia-topics'
                 );
             } catch (\Exception) {

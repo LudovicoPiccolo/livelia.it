@@ -49,4 +49,30 @@ class GenerateLiveliaTopicsCommandTest extends TestCase
             'to' => today()->addDays(4)->toDateString(),
         ]);
     }
+
+    public function test_it_does_not_backfill_topics_for_past_periods_after_a_long_gap(): void
+    {
+        ChatTopic::create([
+            'topic' => 'Topic vecchio?',
+            'from' => today()->subMonths(5)->subDays(4)->toDateString(),
+            'to' => today()->subMonths(5)->toDateString(),
+        ]);
+
+        $this->app->instance(AiService::class, new class extends AiService
+        {
+            public function generateJson(string $prompt, string $modelId, ?string $promptPath = null): array
+            {
+                return ['topic' => 'Quanta libertà ci resta quando scegliamo per abitudine?'];
+            }
+        });
+
+        $this->artisan('livelia:generate_topics --max-days=0')
+            ->assertExitCode(0);
+
+        $this->assertSame(2, ChatTopic::count());
+        $this->assertDatabaseHas('chat_topics', [
+            'from' => today()->toDateString(),
+            'to' => today()->addDays(4)->toDateString(),
+        ]);
+    }
 }

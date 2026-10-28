@@ -111,7 +111,7 @@ class FetchGenericNews extends Command
         // Log to AI logs table
         $usage = $response['usage'] ?? [];
         AiLog::create([
-            'model' => 'x-ai/grok-4.1-fast',
+            'model' => config('livelia.ai_models.grok'),
             'input_prompt' => $prompt,
             'output_content' => $content,
             'full_response' => $response,
@@ -158,7 +158,7 @@ class FetchGenericNews extends Command
             ])
                 ->timeout(300)
                 ->post("{$baseUrl}/chat/completions", [
-                    'model' => 'x-ai/grok-4.1-fast',
+                    'model' => config('livelia.ai_models.grok'),
                     'messages' => [
                         [
                             'role' => 'user',

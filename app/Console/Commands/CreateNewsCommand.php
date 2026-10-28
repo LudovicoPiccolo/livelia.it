@@ -110,7 +110,7 @@ PROMPT;
             ])
                 ->timeout(60)
                 ->post("{$baseUrl}/chat/completions", [
-                    'model' => 'x-ai/grok-4.1-fast',
+                    'model' => config('livelia.ai_models.grok'),
                     'messages' => [
                         [
                             'role' => 'system',

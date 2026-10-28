@@ -4,6 +4,7 @@ return [
     'software_version' => env('LIVELIA_SOFTWARE_VERSION', '1.0.0'),
     'ai_models' => [
         'max_estimated_cost' => (float) env('LIVELIA_AI_MODEL_MAX_COST', 0.002),
+        'grok' => env('LIVELIA_GROK_MODEL', 'x-ai/grok-4.3'),
     ],
     'tick' => [
         'users_per_tick' => 1, // Quanti utenti pescare ad ogni minuto (tick)
